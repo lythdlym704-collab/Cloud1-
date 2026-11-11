@@ -16,6 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Fix Folders Structure
+        run: |
+          # ترتيب المجلدات تلقائياً (نقل ملفات lib و public)
+          mkdir -p lib public
+          mv -f analyzer.js builder.js png.js sdk.js zip.js lib/ 2>/dev/null || true
+          mv -f index.html style.css app.js icon.svg public/ 2>/dev/null || true
+
       - name: Set up Java JDK
         uses: actions/setup-java@v4
         with:
@@ -27,7 +34,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup Android Tools
+      - name: Setup Android Environment
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
           BUILD_TOOLS_DIR=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | sort -V | tail -n 1)
@@ -39,57 +46,43 @@ jobs:
         run: |
           npm install
 
-      - name: Trigger Build via Server
+      - name: Compile and Generate APK
         run: |
-          # تشغيل خادم التطبيق سحابياً
-          npm start &
-          sleep 6
+          node -e '
+            const path = require("path");
+            const fs = require("fs");
+            const { buildApk } = require("./lib/builder");
 
-          # إرسال أمر بناء ملف APK
-          echo "جاري إرسال طلب البناء..."
-          BUILD_RESP=$(curl -s -X POST http://localhost:3000/api/build \
-            -H "Content-Type: application/json" \
-            -d '{
-              "mode": "web",
-              "appName": "تطبيقي",
-              "packageName": "com.lyth.app",
-              "versionName": "1.0",
-              "versionCode": 1,
-              "permissions": ["VIBRATE", "INTERNET"],
-              "html": "<!doctype html><html lang=\"ar\" dir=\"rtl\"><head><meta charset=\"utf-8\"><title>تطبيقي</title></head><body style=\"display:grid;place-items:center;min-height:100vh;margin:0;font-family:sans-serif;background:#eef2ff\"><h1>تم بناء التطبيق بنجاح 🎉</h1></body></html>"
-            }')
-          
-          JOB_ID=$(echo "$BUILD_RESP" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
-          echo "معرّف عملية البناء: $JOB_ID"
+            async function start() {
+              console.log("بدء تجميع التطبيق...");
+              const config = {
+                mode: "web",
+                appName: "تطبيقي",
+                packageName: "com.lyth.app",
+                versionName: "1.0",
+                versionCode: 1,
+                permissions: ["VIBRATE", "INTERNET"],
+                html: fs.readFileSync("./public/index.html", "utf8")
+              };
 
-          if [ -z "$JOB_ID" ]; then
-            echo "فشل إرسال الطلب: $BUILD_RESP"
-            exit 1
-          fi
+              const dataDir = path.resolve("./.data");
+              fs.mkdirSync(dataDir, { recursive: true });
 
-          # انتظار انتهاء السيرفر من تجميع ملف الـ APK وتحميله
-          mkdir -p output
-          for i in {1..40}; do
-            STATUS_RESP=$(curl -s "http://localhost:3000/api/jobs/$JOB_ID")
-            STATUS=$(echo "$STATUS_RESP" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
-            echo "الحالة الحالية: $STATUS"
-            
-            if [ "$STATUS" == "done" ]; then
-              echo "نجح البناء! جاري سحب الـ APK..."
-              curl -s -o output/app-release.apk "http://localhost:3000/api/jobs/$JOB_ID/apk"
-              break
-            elif [ "$STATUS" == "failed" ]; then
-              echo "فشل البناء الداخلي!"
-              echo "$STATUS_RESP"
-              exit 1
-            fi
-            sleep 2
-          done
+              const res = await buildApk(config, {
+                dataDir: dataDir,
+                log: (msg) => console.log(msg)
+              });
 
-          if [ ! -f "output/app-release.apk" ]; then
-            echo "الملف لم يتم تنزيله!"
-            exit 1
-          fi
+              fs.mkdirSync("./output", { recursive: true });
+              fs.copyFileSync(res.apkPath, "./output/app-release.apk");
+              console.log("تم إنشاء الـ APK بنجاح!");
+            }
+
+            start().catch(err => {
+              console.error(err);
+              process.exit(1);
+            });
+          '
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
