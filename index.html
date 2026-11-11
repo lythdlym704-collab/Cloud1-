@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>APK Studio</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="34" height="34">
+      <div>
+        <h1>APK Studio</h1>
+        <p>ضع الكود ← اصنع التطبيق ← حمّل الـ APK</p>
+      </div>
+    </div>
+    <div class="status" id="sdk-status" title="حالة أدوات البناء">
+      <span class="dot"></span><span class="status-text">جارٍ الفحص…</span>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-analyze">🔍 فحص الكود</button>
+      <button class="btn primary" id="btn-build">🛠 صنع التطبيق</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ===================== editor column ===================== -->
+    <section class="panel editor-panel">
+      <div class="panel-head">
+        <div class="tabs" id="file-tabs" role="tablist"></div>
+        <div class="editor-tools">
+          <select id="template" title="قوالب جاهزة">
+            <option value="">قوالب جاهزة…</option>
+            <option value="counter">عدّاد بسيط</option>
+            <option value="todo">قائمة مهام</option>
+            <option value="calc">آلة حاسبة</option>
+            <option value="java-hello">Java: مرحباً بالعالم</option>
+            <option value="blank">فارغ</option>
+          </select>
+          <button class="btn icon" id="btn-import" title="استيراد ملف">📂</button>
+          <input type="file" id="import-input" accept=".html,.htm,.css,.js,.java,.xml,.txt" hidden>
+        </div>
+      </div>
+      <div class="editor-wrap">
+        <div class="gutter" id="gutter" aria-hidden="true"></div>
+        <textarea id="editor" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" dir="ltr" placeholder="// اكتب أو الصق الكود هنا"></textarea>
+      </div>
+      <div class="editor-status"><span id="cursor-pos">سطر 1، عمود 1</span><span id="file-info"></span></div>
+    </section>
+
+    <!-- ===================== settings column ===================== -->
+    <aside class="panel settings-panel">
+      <h2>إعدادات التطبيق</h2>
+      <div class="mode-switch" role="radiogroup" aria-label="نوع التطبيق">
+        <label><input type="radio" name="mode" value="web" checked> <span>ويب (HTML/JS)</span></label>
+        <label><input type="radio" name="mode" value="java"> <span>جافا أصلي</span></label>
+      </div>
+      <label class="field">اسم التطبيق<input id="appName" type="text" maxlength="50" placeholder="تطبيقي"></label>
+      <label class="field">اسم الحزمة<input id="packageName" type="text" dir="ltr" placeholder="com.example.myapp"></label>
+      <div class="row">
+        <label class="field">الإصدار<input id="versionName" type="text" dir="ltr" value="1.0"></label>
+        <label class="field">رقم البناء<input id="versionCode" type="number" dir="ltr" min="1" value="1"></label>
+      </div>
+      <div class="row">
+        <label class="field">اللون<input id="color" type="color" value="#4f8cff"></label>
+        <label class="field">الاتجاه
+          <select id="orientation">
+            <option value="unspecified">تلقائي</option>
+            <option value="portrait">عمودي</option>
+            <option value="landscape">أفقي</option>
+          </select>
+        </label>
+      </div>
+      <div class="field">
+        <span>الأيقونة (أي صورة: JPG / PNG / WebP — تُقصّ مربّعةً تلقائياً)</span>
+        <div class="icon-row">
+          <img id="icon-preview" alt="" width="44" height="44">
+          <button class="btn small" id="btn-icon">اختيار…</button>
+          <button class="btn small" id="btn-icon-clear" hidden>إزالة</button>
+          <input type="file" id="icon-input" accept="image/*" hidden>
+        </div>
+      </div>
+      <details class="perms" open>
+        <summary>الصلاحيات <span class="hint" id="perm-hint"></span></summary>
+        <div id="permissions" class="perm-list"></div>
+      </details>
+      <div class="settings-actions">
+        <button class="btn block" id="btn-preview">▶ معاينة</button>
+        <button class="btn block" id="btn-export">📦 تصدير المشروع (ZIP)</button>
+      </div>
+    </aside>
+
+    <!-- ===================== output column ===================== -->
+    <section class="panel output-panel">
+      <div class="panel-head">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-out="report">📋 تقرير الفحص</button>
+          <button class="tab" data-out="log">🧾 سجل البناء</button>
+          <button class="tab" data-out="preview">📱 معاينة</button>
+        </div>
+      </div>
+      <div class="out active" id="out-report">
+        <div class="placeholder">
+          <div class="big">🔍</div>
+          <p>اضغط «فحص الكود» ليظهر لك شرح بالعربية لما يفعله الكود: عناصر الواجهة، الدوال، الاتصال بالشبكة، التخزين، الصلاحيات، والمخاطر.</p>
+        </div>
+      </div>
+      <div class="out" id="out-log">
+        <div class="placeholder">
+          <div class="big">🛠</div>
+          <p>اضغط «صنع التطبيق» لبدء البناء. سيظهر هنا سجل العملية خطوة بخطوة، ثم زر تنزيل ملف APK.</p>
+        </div>
+      </div>
+      <div class="out" id="out-preview">
+        <div class="phone">
+          <div class="phone-notch"></div>
+          <iframe id="preview-frame" title="معاينة" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
